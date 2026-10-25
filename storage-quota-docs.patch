@@ -1,0 +1,159 @@
+diff --git a/docs/administration/config-cheat-sheet.md b/docs/administration/config-cheat-sheet.md
+index b9bbd9b..b2f5d18 100644
+--- a/docs/administration/config-cheat-sheet.md
++++ b/docs/administration/config-cheat-sheet.md
+@@ -1730,3 +1730,48 @@ With `github`, `uses: actions/checkout@v4` resolves to `https://github.com/actio
+ - `SHOW_FOOTER_POWERED_BY`: **true**: Show the "powered by" text in the footer.
+ - `ENABLE_SITEMAP`: **true**: Generate sitemap.
+ - `ENABLE_FEED`: **true**: Enable/Disable RSS/Atom feed.
++
++## Storage quotas (`quota`)
++
++Storage quotas are disabled by default. Site administrators can configure repository Git and LFS limits, and aggregate user and organization limits. Account limits apply to repositories owned by that account, regardless of who pushes. Organizations have independent quotas; public instances should also restrict organization creation where appropriate.
++
++```ini
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++;; Storage quotas apply to Git objects (including wikis) and repository LFS associations.
++;; Limits accept bytes or units such as 1 GiB. -1 is unlimited; 0 prevents growth.
++;; Site administrators can override defaults per repository, user, and organization.
++;; Account limits apply in addition to repository limits. Organizations have independent quotas.
++;; Temporary Git fetch storage can overshoot between checks; use filesystem quotas for hard disk protection.
++;[quota]
++;DEFAULT_REPO_GIT_LIMIT = -1
++;DEFAULT_REPO_LFS_LIMIT = -1
++;DEFAULT_USER_LIMIT = -1
++;DEFAULT_ORG_LIMIT = -1
++```
++
++A missing database override inherits the corresponding configuration default. `-1` explicitly means unlimited, while `0` permits no additional object storage. Repository overrides do not bypass account limits. Administrators manage persistent overrides from repository settings and account administration, or with `GET` and `PUT /api/v1/admin/quotas/{subject_type}/{id}` (`repository`, `user`, or `organization`). API limits are byte counts; null or omitted fields in a PUT restore inheritance. Configuration defaults remain read-only in the UI and must match across instances.
++
++Git quotas count stored objects and associated pack indexes in the repository and its wiki, including unreachable objects. LFS quotas count each object once per repository association, even when physical storage is shared with another repository. Other storage, including releases, attachments, packages, Actions artifacts, refs, and logs, is outside these quotas.
++
++Limits cover HTTP and SSH pushes, server-generated Git changes, PR object fetches, forks, migrations, mirrors, and LFS uploads and associations. Reads remain available when a quota is exceeded. Ref-only updates can proceed; new commits that delete files still add stored objects. Safe garbage collection frees Git quota only after it actually removes objects. Repository administrators can request safe garbage collection once per hour from repository settings.
++
++Reservations serialize writes belonging to one account when quotas are enabled, including across Gitea processes and instances. Concurrent operations can receive a temporary contention error and should retry. Lowered limits preserve existing repositories and block further growth.
++
++These are portable application quotas, not filesystem isolation. Incoming pushes have a native Git pack-stream limit; final checks include quarantine storage. Fetches and clones use monitored staging and exact checks before publishing objects and refs. Temporary storage can overshoot between checks, and Git expansion, verification, and maintenance can require additional disk capacity. Use filesystem or storage-provider quotas and sufficient operational headroom when strict physical disk bounds are required.
++
++### Interrupted operations
++
++Uncertain reservations are retained until recovery, rather than expiring while a writer might still be running. Inspect them with:
++
++```shell
++gitea doctor check --run storage-quota
++```
++
++Before repairing, stop every Gitea web process, SSH Git process, and worker sharing the database and repository storage. Then run:
++
++```shell
++gitea doctor check --run storage-quota --fix --quota-recovery-offline
++```
++
++The offline flag confirms that writers have been stopped. Recovery removes operation-owned staging and incoming quarantines, verifies the affected Git repositories with `git fsck`, reconciles stored usage, and releases reservations only after cleanup and verification succeed. Restart the instances afterwards. The `storage_quota_reconcile` cron task also refreshes usage daily and skips active reservations.
+diff --git a/i18n/zh-cn/docs/current/administration/config-cheat-sheet.md b/i18n/zh-cn/docs/current/administration/config-cheat-sheet.md
+index 0af0131..fa48e94 100644
+--- a/i18n/zh-cn/docs/current/administration/config-cheat-sheet.md
++++ b/i18n/zh-cn/docs/current/administration/config-cheat-sheet.md
+@@ -1551,3 +1551,48 @@ PROXY_HOSTS = *.github.com
+ - `SHOW_FOOTER_POWERED_BY`: **true**: 在页脚显示“由...提供动力”的文本。
+ - `ENABLE_SITEMAP`: **true**: 生成 sitemap.
+ - `ENABLE_FEED`: **true**: 是否启用 RSS/Atom
++
++## Storage quotas (`quota`)
++
++Storage quotas are disabled by default. Site administrators can configure repository Git and LFS limits, and aggregate user and organization limits. Account limits apply to repositories owned by that account, regardless of who pushes. Organizations have independent quotas; public instances should also restrict organization creation where appropriate.
++
++```ini
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++;; Storage quotas apply to Git objects (including wikis) and repository LFS associations.
++;; Limits accept bytes or units such as 1 GiB. -1 is unlimited; 0 prevents growth.
++;; Site administrators can override defaults per repository, user, and organization.
++;; Account limits apply in addition to repository limits. Organizations have independent quotas.
++;; Temporary Git fetch storage can overshoot between checks; use filesystem quotas for hard disk protection.
++;[quota]
++;DEFAULT_REPO_GIT_LIMIT = -1
++;DEFAULT_REPO_LFS_LIMIT = -1
++;DEFAULT_USER_LIMIT = -1
++;DEFAULT_ORG_LIMIT = -1
++```
++
++A missing database override inherits the corresponding configuration default. `-1` explicitly means unlimited, while `0` permits no additional object storage. Repository overrides do not bypass account limits. Administrators manage persistent overrides from repository settings and account administration, or with `GET` and `PUT /api/v1/admin/quotas/{subject_type}/{id}` (`repository`, `user`, or `organization`). API limits are byte counts; null or omitted fields in a PUT restore inheritance. Configuration defaults remain read-only in the UI and must match across instances.
++
++Git quotas count stored objects and associated pack indexes in the repository and its wiki, including unreachable objects. LFS quotas count each object once per repository association, even when physical storage is shared with another repository. Other storage, including releases, attachments, packages, Actions artifacts, refs, and logs, is outside these quotas.
++
++Limits cover HTTP and SSH pushes, server-generated Git changes, PR object fetches, forks, migrations, mirrors, and LFS uploads and associations. Reads remain available when a quota is exceeded. Ref-only updates can proceed; new commits that delete files still add stored objects. Safe garbage collection frees Git quota only after it actually removes objects. Repository administrators can request safe garbage collection once per hour from repository settings.
++
++Reservations serialize writes belonging to one account when quotas are enabled, including across Gitea processes and instances. Concurrent operations can receive a temporary contention error and should retry. Lowered limits preserve existing repositories and block further growth.
++
++These are portable application quotas, not filesystem isolation. Incoming pushes have a native Git pack-stream limit; final checks include quarantine storage. Fetches and clones use monitored staging and exact checks before publishing objects and refs. Temporary storage can overshoot between checks, and Git expansion, verification, and maintenance can require additional disk capacity. Use filesystem or storage-provider quotas and sufficient operational headroom when strict physical disk bounds are required.
++
++### Interrupted operations
++
++Uncertain reservations are retained until recovery, rather than expiring while a writer might still be running. Inspect them with:
++
++```shell
++gitea doctor check --run storage-quota
++```
++
++Before repairing, stop every Gitea web process, SSH Git process, and worker sharing the database and repository storage. Then run:
++
++```shell
++gitea doctor check --run storage-quota --fix --quota-recovery-offline
++```
++
++The offline flag confirms that writers have been stopped. Recovery removes operation-owned staging and incoming quarantines, verifies the affected Git repositories with `git fsck`, reconciles stored usage, and releases reservations only after cleanup and verification succeed. Restart the instances afterwards. The `storage_quota_reconcile` cron task also refreshes usage daily and skips active reservations.
+diff --git a/i18n/zh-tw/docs/current/administration/config-cheat-sheet.md b/i18n/zh-tw/docs/current/administration/config-cheat-sheet.md
+index 3223a16..c1505d3 100644
+--- a/i18n/zh-tw/docs/current/administration/config-cheat-sheet.md
++++ b/i18n/zh-tw/docs/current/administration/config-cheat-sheet.md
+@@ -1558,3 +1558,48 @@ PROXY_HOSTS = *.github.com
+ - `SHOW_FOOTER_POWERED_BY`: **true**: 在頁腳顯示“由...提供動力”的文本。
+ - `ENABLE_SITEMAP`: **true**: 生成 sitemap.
+ - `ENABLE_FEED`: **true**: 是否啟用 RSS/Atom
++
++## Storage quotas (`quota`)
++
++Storage quotas are disabled by default. Site administrators can configure repository Git and LFS limits, and aggregate user and organization limits. Account limits apply to repositories owned by that account, regardless of who pushes. Organizations have independent quotas; public instances should also restrict organization creation where appropriate.
++
++```ini
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++;; Storage quotas apply to Git objects (including wikis) and repository LFS associations.
++;; Limits accept bytes or units such as 1 GiB. -1 is unlimited; 0 prevents growth.
++;; Site administrators can override defaults per repository, user, and organization.
++;; Account limits apply in addition to repository limits. Organizations have independent quotas.
++;; Temporary Git fetch storage can overshoot between checks; use filesystem quotas for hard disk protection.
++;[quota]
++;DEFAULT_REPO_GIT_LIMIT = -1
++;DEFAULT_REPO_LFS_LIMIT = -1
++;DEFAULT_USER_LIMIT = -1
++;DEFAULT_ORG_LIMIT = -1
++```
++
++A missing database override inherits the corresponding configuration default. `-1` explicitly means unlimited, while `0` permits no additional object storage. Repository overrides do not bypass account limits. Administrators manage persistent overrides from repository settings and account administration, or with `GET` and `PUT /api/v1/admin/quotas/{subject_type}/{id}` (`repository`, `user`, or `organization`). API limits are byte counts; null or omitted fields in a PUT restore inheritance. Configuration defaults remain read-only in the UI and must match across instances.
++
++Git quotas count stored objects and associated pack indexes in the repository and its wiki, including unreachable objects. LFS quotas count each object once per repository association, even when physical storage is shared with another repository. Other storage, including releases, attachments, packages, Actions artifacts, refs, and logs, is outside these quotas.
++
++Limits cover HTTP and SSH pushes, server-generated Git changes, PR object fetches, forks, migrations, mirrors, and LFS uploads and associations. Reads remain available when a quota is exceeded. Ref-only updates can proceed; new commits that delete files still add stored objects. Safe garbage collection frees Git quota only after it actually removes objects. Repository administrators can request safe garbage collection once per hour from repository settings.
++
++Reservations serialize writes belonging to one account when quotas are enabled, including across Gitea processes and instances. Concurrent operations can receive a temporary contention error and should retry. Lowered limits preserve existing repositories and block further growth.
++
++These are portable application quotas, not filesystem isolation. Incoming pushes have a native Git pack-stream limit; final checks include quarantine storage. Fetches and clones use monitored staging and exact checks before publishing objects and refs. Temporary storage can overshoot between checks, and Git expansion, verification, and maintenance can require additional disk capacity. Use filesystem or storage-provider quotas and sufficient operational headroom when strict physical disk bounds are required.
++
++### Interrupted operations
++
++Uncertain reservations are retained until recovery, rather than expiring while a writer might still be running. Inspect them with:
++
++```shell
++gitea doctor check --run storage-quota
++```
++
++Before repairing, stop every Gitea web process, SSH Git process, and worker sharing the database and repository storage. Then run:
++
++```shell
++gitea doctor check --run storage-quota --fix --quota-recovery-offline
++```
++
++The offline flag confirms that writers have been stopped. Recovery removes operation-owned staging and incoming quarantines, verifies the affected Git repositories with `git fsck`, reconciles stored usage, and releases reservations only after cleanup and verification succeed. Restart the instances afterwards. The `storage_quota_reconcile` cron task also refreshes usage daily and skips active reservations.

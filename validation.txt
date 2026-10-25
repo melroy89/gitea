@@ -1,0 +1,20 @@
+Storage quota validation — 2026-10-25
+
+Go 1.27.3; upstream base ff68b39c93d7b0d10e0f6629fb188f8f1c0b37d4.
+
+PASS: make fmt, make lint-go (0 issues), make lint-templates (597 files).
+PASS: make generate-swagger and Swagger validation.
+PASS: quota models/services, LFS, settings unit tests; quota race tests.
+PASS: migration TestAddStorageQuotas on SQLite, PostgreSQL 17, MySQL 8.4, SQL Server 2019.
+PASS: integration TestStorageQuota.* and TestAPILFS on SQLite and PostgreSQL with MinIO.
+PASS: selected SQLite integration tests for mirrors, migrations, forks, wiki push, and transfers.
+
+Covered behavior includes HTTP/SSH ref-only and object pushes, gzip/chunked receive-pack, actual LFS PUT limits and deduplication, fork rejection cleanup, transfer rejection/success, quota administration and settings rendering, staged clone/fetch rejection, cross-repository account contention, concurrent LFS association, and interrupted-operation recovery. The configured LFS storage backend was exercised with MinIO.
+
+BenchmarkStorageQuotaPackedPush: 10,000 historical commits, three small HTTP pushes, approximately 231 ms/op in a local run. This is an observation, not a performance guarantee.
+
+Screenshots use isolated test fixtures. quota-before.png shows the existing settings layout; quota-after.png shows the finite Git, LFS, and account quota summary; quota-admin.png shows the administrator override form.
+
+storage-quota-docs.patch applies to gitea/docs base cb424640a2435a0b2279923b0b7e19bb82a5c840. It documents the configuration and safe offline recovery. A companion WIP documentation PR remains to be published on Gitea.com.
+
+Portable application quotas do not provide absolute physical disk bounds. Fetch staging and Git maintenance need operational headroom; use filesystem/provider quotas when hard physical limits are required.
