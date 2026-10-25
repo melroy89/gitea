@@ -18,3 +18,10 @@ Screenshots use isolated test fixtures. quota-before.png shows the existing sett
 storage-quota-docs.patch applies to gitea/docs base cb424640a2435a0b2279923b0b7e19bb82a5c840. It documents the configuration and safe offline recovery. A companion WIP documentation PR remains to be published on Gitea.com.
 
 Portable application quotas do not provide absolute physical disk bounds. Fetch staging and Git maintenance need operational headroom; use filesystem/provider quotas when hard physical limits are required.
+
+Final upstream CI: PASS on b476adbb099f5c8b9fb331c313755a83fe2c6bf7.
+Build, lint, backend checks, unit tests, end-to-end tests, SQLite, both PostgreSQL shards, MySQL, and SQL Server all passed.
+https://github.com/go-gitea/gitea/actions/runs/40232810274
+https://github.com/go-gitea/gitea/actions/runs/40232810301
+https://github.com/go-gitea/gitea/actions/runs/40232810320
+Maintainer review (giteabot/lgtm) remains pending.
